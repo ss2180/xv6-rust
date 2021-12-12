@@ -1,3 +1,9 @@
 /target
-*.iso
-*.bin
+*~
+_*
+*.o
+*.d
+*.asm
+*.sym
+*.img
+bootblock
