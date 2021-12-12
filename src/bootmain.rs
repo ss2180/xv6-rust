@@ -11,11 +11,12 @@ fn panic(_info: &PanicInfo) -> ! {
 #[no_mangle]
 pub extern "C" fn bootmain() -> ! {
     let buf = 0xb8000 as *mut u8;
+    let mut i : u8 = 0;
+    loop{
+    i = i + 1;
     unsafe{
-        *buf = 66;
-        *buf.offset(1)=0xb;
+        *buf = i;
+        *buf.offset(1)=i;
     }
-
-    
-    loop {}
+}
 }

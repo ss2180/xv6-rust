@@ -59,9 +59,9 @@ xv6.img: bootblock
 
 # ../target/i386-xv6_rust/debug/libbootmain.a
 
-bootblock: bootasm.S ../target/i386-xv6_rust/debug/libbootmain.a
+bootblock: bootasm.S ../target/i386-xv6_rust/release/libbootmain.a
 	$(CC) $(CFLAGS) -fno-pic -nostdinc -I. -c bootasm.S
-	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o bootblock.o bootasm.o ../target/i386-xv6_rust/debug/libbootmain.a
+	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o bootblock.o bootasm.o ../target/i386-xv6_rust/release/libbootmain.a
 	$(OBJDUMP) -S bootblock.o > bootblock.asm
 	$(OBJCOPY) -S -O binary -j .text bootblock.o bootblock
 	# The following line is here since it has been noticed that if you use Explorer to
@@ -70,8 +70,8 @@ bootblock: bootasm.S ../target/i386-xv6_rust/debug/libbootmain.a
 	# chmod +x sign.pl
 	./sign.pl bootblock
 
-../target/i386-xv6_rust/debug/libbootmain.a: bootmain.rs
-	cargo build
+../target/i386-xv6_rust/release/libbootmain.a: bootmain.rs
+	cargo build --release
 
 clean: 
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
