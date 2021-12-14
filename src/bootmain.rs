@@ -3,6 +3,7 @@
 #![feature(asm)]
 use core::panic::PanicInfo;
 
+#[repr(C)]
 struct Elfhdr {
     magic: u32,
     elf: [u8; 12],
@@ -21,6 +22,7 @@ struct Elfhdr {
     shstrndx: u16
 }
 
+#[repr(C)]
 struct Proghdr {
     segtype: u32,
     offset: u32,
@@ -34,17 +36,22 @@ struct Proghdr {
 
 unsafe fn inb(port: u16) -> u8 {
     let mut data : u8;
-    asm!("in al, dx", out("al") data, in("dx") port);
+    asm!("in al,dx", out("al") data, in("dx") port);
     return data;
 }
 
 unsafe fn outb(port: u16, data: u8) {
-    asm!("out al,dx", in("al") data, in("dx") port);
+    asm!("out dx, al", in("al") data, in("dx") port);
 }
 
-unsafe fn insl(port: u32, addr: *mut u16, cnt: u32) {
+unsafe fn insl(port: u32, addr: *const u8, cnt: u16) {
     asm!("cld");
-    asm!("rep insl", );
+    asm!("rep insl", in("edi") addr, in("ecx") cnt, in("dx") port, options(att_syntax));
+}
+
+unsafe fn stosb(addr: *const u8, data: u8, cnt: u16) {
+    asm!("cld");
+    asm!("rep stosb", in("edi") addr, in("ecx") cnt, in("al") data, options(att_syntax));
 }
 
 unsafe fn waitdisk() {
@@ -52,7 +59,7 @@ unsafe fn waitdisk() {
     }
 }
 
-unsafe fn readsect(dst: *mut u8, offset: u32) {
+unsafe fn readsect(dst: *const u8, offset: u32) {
     // Issue command.
     waitdisk();
     outb(0x1F2, 1);   // count = 1
@@ -64,27 +71,28 @@ unsafe fn readsect(dst: *mut u8, offset: u32) {
 
     // Read data.
     waitdisk();
+    insl(0x1F0, dst, 128);
 }
 
-fn readseg(pa: &mut u8, count: u32, mut offset: u32) {
+fn readseg(mut pa: *mut u8, count: u32, mut offset: u32) {
 
     static SECTSIZE: u32 = 512;
     let epa: *mut u8;
-    let mut pa_ptr : *mut u8 = pa;
+    //let mut pa_ptr : *mut u8 = pa;
 
     unsafe{
-        epa = pa_ptr.add(count as usize);
+        epa = pa.add(count as usize);
 
         // Round down to sector boundary
-        pa_ptr = pa_ptr.sub((offset % SECTSIZE) as usize);
+        pa = pa.sub((offset % SECTSIZE) as usize);
 
         offset = (offset / SECTSIZE) + 1;
 
-        while pa_ptr < epa
+        while pa < epa
         {
-            // Readsect
+            readsect(pa, offset);
 
-            pa_ptr = pa_ptr.add(SECTSIZE as usize);
+            pa = pa.add(SECTSIZE as usize);
             offset = offset + 1;
         }
     }
@@ -92,6 +100,10 @@ fn readseg(pa: &mut u8, count: u32, mut offset: u32) {
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
+    loop{};
+}
+
+fn fail() -> !{
     let buf = 0xb8000 as *mut u8;
     let mut i : u8 = 0;
     loop{
@@ -106,9 +118,45 @@ fn panic(_info: &PanicInfo) -> ! {
 #[no_mangle]
 pub extern "C" fn bootmain() -> ! {
 
-    unsafe{
-        inb(0x64);
+    let mut elf: *mut u8 = 0x10000 as *mut u8;
+
+    readseg(elf, 4096, 0);
+
+    unsafe { 
+        
+        let elf_ref: &Elfhdr = core::mem::transmute::<*mut u8, &Elfhdr>(elf);
+
+        if elf_ref.magic != 0x464C457F
+        {
+            fail();
+        }
+
+        let mut ph: *mut u8 = elf.add(elf_ref.phoff as usize);
+        let mut ph_ref: & Proghdr = core::mem::transmute::<*mut u8, &Proghdr>(ph);
+        let eph: *mut u8 = ph.add((elf_ref.phnum * elf_ref.phentsize) as usize);
+        let mut i = 0;
+        while ph < eph
+        {
+
+            let pa: *mut u8 = ph_ref.paddr as *mut u8;
+            readseg(pa, ph_ref.filesz, ph_ref.offset);
+
+            if ph_ref.memsz > ph_ref.filesz {
+                stosb(pa.add(ph_ref.filesz as usize), 0, (ph_ref.memsz - ph_ref.filesz) as u16);
+            }
+
+            ph = ph.add(elf_ref.phentsize as usize);
+
+            ph_ref = core::mem::transmute::<*mut u8, &Proghdr>(ph);
+
+            i = i + 1;
+        }
+        let entry = elf_ref.entry as *const ();
+        let code: fn() = core::mem::transmute::<*const (), fn()>(entry);
+        (code)();
     }
+    
+    
 
     loop {}
 }

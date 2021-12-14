@@ -8,6 +8,10 @@ name = "bootmain"
 path = "src/bootmain.rs"
 crate-type = ["staticlib"]
 
+[[bin]]
+name = "kernel"
+path = "src/kernel.rs"
+
 [profile.dev]
 panic = "abort"
 opt-level = "z"

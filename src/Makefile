@@ -53,9 +53,12 @@ ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
 endif
 
-xv6.img: bootblock
+xv6.img: bootblock kernel
 	dd if=/dev/zero of=xv6.img count=10000
 	dd if=bootblock of=xv6.img conv=notrunc
+	cp ../target/i386-xv6_rust/release/kernel ./kernel
+	dd if=kernel of=xv6.img seek=1 conv=notrunc
+	rm kernel
 
 # ../target/i386-xv6_rust/debug/libbootmain.a
 
@@ -71,6 +74,9 @@ bootblock: bootasm.S ../target/i386-xv6_rust/release/libbootmain.a
 	./sign.pl bootblock
 
 ../target/i386-xv6_rust/release/libbootmain.a: bootmain.rs
+	cargo build --release
+
+kernel: ../target/i386-xv6_rust/release/kernel
 	cargo build --release
 
 clean: 
