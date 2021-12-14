@@ -8,10 +8,6 @@ name = "bootmain"
 path = "src/bootmain.rs"
 crate-type = ["staticlib"]
 
-[[bin]]
-name = "test"
-path = "src/bootmain.rs"
-
 [profile.dev]
 panic = "abort"
 opt-level = "z"
