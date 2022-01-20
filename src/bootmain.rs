@@ -118,7 +118,7 @@ fn fail() -> !{
 #[no_mangle]
 pub extern "C" fn bootmain() -> ! {
 
-    let mut elf: *mut u8 = 0x10000 as *mut u8;
+    let elf: *mut u8 = 0x10000 as *mut u8;
 
     readseg(elf, 4096, 0);
 
