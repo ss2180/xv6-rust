@@ -116,5 +116,5 @@ pub fn print_something() {
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     };
 
-    write!(writer, "test are and ").unwrap();
+    writer.write_str("Test!");
 }
