@@ -3,18 +3,13 @@ name = "xv6-rust"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-name = "bootmain"
-path = "src/bootmain.rs"
-crate-type = ["staticlib"]
-
 [[bin]]
 name = "kernel"
 path = "src/kernel.rs"
 
 [profile.dev]
 panic = "abort"
-opt-level = "z"
+opt-level = 0
 
 [profile.release]
 panic = "abort"

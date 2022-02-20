@@ -13,7 +13,6 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub fn _start() {
-    
     vga_buffer::print_something();
     loop{}
 }

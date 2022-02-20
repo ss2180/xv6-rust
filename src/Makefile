@@ -56,15 +56,12 @@ endif
 xv6.img: bootblock kernel
 	dd if=/dev/zero of=xv6.img count=10000
 	dd if=bootblock of=xv6.img conv=notrunc
-	cp ../target/i386-xv6_rust/release/kernel ./kernel
 	dd if=kernel of=xv6.img seek=1 conv=notrunc
-	rm kernel
 
-# ../target/i386-xv6_rust/debug/libbootmain.a
-
-bootblock: bootasm.S ../target/i386-xv6_rust/release/libbootmain.a
+bootblock: bootasm.S bootmain.c
+	$(CC) $(CFLAGS) -fno-pic -O -nostdinc -I. -c bootmain.c
 	$(CC) $(CFLAGS) -fno-pic -nostdinc -I. -c bootasm.S
-	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o bootblock.o bootasm.o ../target/i386-xv6_rust/release/libbootmain.a
+	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o bootblock.o bootasm.o bootmain.o
 	$(OBJDUMP) -S bootblock.o > bootblock.asm
 	$(OBJCOPY) -S -O binary -j .text bootblock.o bootblock
 	# The following line is here since it has been noticed that if you use Explorer to
@@ -73,11 +70,11 @@ bootblock: bootasm.S ../target/i386-xv6_rust/release/libbootmain.a
 	# chmod +x sign.pl
 	./sign.pl bootblock
 
-../target/i386-xv6_rust/release/libbootmain.a: bootmain.rs
-	cargo build --release
+../target/i386-xv6_rust/debug/kernel: kernel.rs vga_buffer.rs
+	cargo build --profile dev
 
-kernel: ../target/i386-xv6_rust/release/kernel
-	cargo build --release
+kernel: ../target/i386-xv6_rust/debug/kernel
+	cp ../target/i386-xv6_rust/debug/kernel ./kernel
 
 clean: 
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
@@ -86,6 +83,13 @@ clean:
 	xv6memfs.img mkfs .gdbinit \
 	syscall.h syscalltable.h usys.S
 
+# try to generate a unique GDB port
+GDBPORT = $(shell expr `id -u` % 5000 + 25000)
+# QEMU's gdb stub command line changed in 0.11
+QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
+	then echo "-gdb tcp::$(GDBPORT)"; \
+	else echo "-s -p $(GDBPORT)"; fi)
+
 ifndef CPUS
 CPUS := 1
 endif
@@ -93,3 +97,10 @@ QEMUOPTS = -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512
 
 qemu: xv6.img
 	$(QEMU) -vga std -serial mon:stdio $(QEMUOPTS)
+
+.gdbinit: .gdbinit.tmpl
+	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
+
+qemu-gdb: xv6.img .gdbinit
+	@echo "*** Now run 'gdb'." 1>&2
+	$(QEMU) -vga std -serial mon:stdio $(QEMUOPTS) -S $(QEMUGDB)
