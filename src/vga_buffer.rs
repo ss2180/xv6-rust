@@ -1,5 +1,25 @@
 use volatile::Volatile;
 use core::fmt::Write;
+use lazy_static::lazy_static;
+use spin::Mutex;
+
+use crate::x86;
+
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ($crate::vga_buffer::_print(format_args!($($arg)*)));
+}
+
+#[macro_export]
+macro_rules! println {
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+}
+
+#[doc(hidden)]
+pub fn _print(args: core::fmt::Arguments) {
+    WRITER.lock().write_fmt(args).unwrap();
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -12,8 +32,8 @@ pub enum Color {
     Red = 4,
     Magenta = 5,
     Brown = 6,
-    LightGray = 7,
-    DarkGray = 8,
+    LightGrey = 7,
+    DarkGrey = 8,
     LightBlue = 9,
     LightGreen = 10,
     LightCyan = 11,
@@ -22,7 +42,6 @@ pub enum Color {
     Yellow = 14,
     White = 15,
 }
-
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,8 +53,6 @@ impl ColorCode {
         ColorCode((background as u8) << 4 | (foreground as u8))
     }
 }
-
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
@@ -61,7 +78,7 @@ pub struct Writer {
 }
 
 impl Writer {
-    pub fn write_byte(&mut self, byte: u8) {
+    fn write_byte(&mut self, byte: u8) {
         match byte {
             b'\n' => self.new_line(),
             byte => {
@@ -80,6 +97,21 @@ impl Writer {
                 self.column_position += 1;
             }
         }
+    }
+
+    fn write_string(&mut self, s: &str) {
+
+        for byte in s.bytes() {
+            match byte {
+                // printable ASCII byte or newline
+                0x20..=0x7e | b'\n' => self.write_byte(byte),
+                // not part of printable ASCII range
+                _ => self.write_byte(0xfe),
+            }
+
+        }
+
+        sethardwarecursorposition((25*80 - 80) + self.column_position as u16);
     }
 
     fn new_line(&mut self) {
@@ -104,36 +136,47 @@ impl Writer {
     }
 }
 
-impl Writer {
-    pub fn write_string(&mut self, s: &str) {
-
-        for byte in s.bytes() {
-            match byte {
-                // printable ASCII byte or newline
-                0x20..=0x7e | b'\n' => self.write_byte(byte),
-                // not part of printable ASCII range
-                _ => self.write_byte(0xfe),
-            }
-
-        }
-    }
-}
-
-impl Write for Writer {
+// By implementing core::fmt::Write, it provides standard write_char and write_fmt methods. write_string needs to be defined.
+impl core::fmt::Write for Writer {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         self.write_string(s);
         Ok(())
     }
 }
 
+pub fn gethardwarecursorposition() -> u16 {
+    let pos:u16;
 
+    unsafe{
+        x86::outb(0x3d4, 14);
+        let temp = x86::inb(0x3d4 + 1);
+        x86::outb(0x3d4, 15);
+        pos = u16::from_be_bytes([temp, x86::inb(0x3d4 + 1)]);
+    }
 
-pub fn print_something() {
-    let mut writer = Writer {
+    return pos
+}
+
+pub fn sethardwarecursorposition(pos: u16) {
+
+    // NOTE:
+    // Probably should make sure that pos is less that 2000 (25 row * 80 col = 2000 elements)
+    // Might be a good idea to make sure the value is 0 or greater also.
+
+    let bytes = pos.to_be_bytes();
+
+    unsafe{
+        x86::outb(0x3d4, 14);
+        x86::outb(0x3d4 + 1, bytes[0]);
+        x86::outb(0x3d4, 15);
+        x86::outb(0x3d4 + 1, bytes[1]);
+    }
+}
+
+lazy_static! {
+    pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,
-        color_code: ColorCode::new(Color::Yellow, Color::Black),
+        color_code: ColorCode::new(Color::LightGrey, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
-    };
-
-    write!(writer, "The numbers are {} and {}", 42, 1.0/3.0).unwrap();
+    });
 }
