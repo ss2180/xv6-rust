@@ -9,14 +9,19 @@ use core::panic::PanicInfo;
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    println!("{}", _info);
+    //println!("{}", _info);
 
     loop{};
 }
 
 #[no_mangle]
-pub fn _start() {
-    print!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+#[used]
+pub static mut entrypgdir: u32 = 50;
+
+#[no_mangle]
+pub fn main() {
+
+    print!("Hello, World!");
 
     loop{}
 }

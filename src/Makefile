@@ -70,15 +70,19 @@ bootblock: bootasm.S bootmain.c
 	# chmod +x sign.pl
 	./sign.pl bootblock
 
-../target/i386-xv6_rust/debug/kernel: kernel.rs vga_buffer.rs x86.rs
+../target/i386-xv6_rust/debug/libkernel.a: kernel.rs vga_buffer.rs x86.rs
 	cargo build --profile dev
 
-kernel: ../target/i386-xv6_rust/debug/kernel
-	cp ../target/i386-xv6_rust/debug/kernel ./kernel
+kernel: ../target/i386-xv6_rust/debug/libkernel.a entry.o
+	cp ../target/i386-xv6_rust/debug/libkernel.a ./kernel.a
+	$(LD) $(LDFLAGS) -T kernel.ld -o kernel entry.o kernel.a
+	$(OBJDUMP) -S kernel > kernel.asm
+	$(OBJDUMP) -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernel.sym
+
 
 clean: 
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
-	*.o *.d *.asm *.sym vectors.S bootblock entryother \
+	*.o *.a *.d *.asm *.sym vectors.S bootblock entryother \
 	initcode initcode.out kernel xv6.img fs.img kernelmemfs \
 	xv6memfs.img mkfs .gdbinit \
 	syscall.h syscalltable.h usys.S
