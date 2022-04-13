@@ -4,18 +4,18 @@
 
 mod vga_buffer;
 mod x86;
+mod kalloc;
 
 use core::panic::PanicInfo;
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    //println!("{}", _info);
+    println!("\n{}", _info);
 
     loop{};
 }
 
 extern "C" {
-    #[no_mangle]
     static end: u8;
 }
 
@@ -31,6 +31,11 @@ pub static mut entrypgdir: _entrypgdir = _entrypgdir([131,0,0,0,0,0,0,0,0,0,0,0,
 #[no_mangle]
 pub fn main() {
 
-    unsafe {print!("Hello, World! {:p}", &end);}
+    unsafe {
+        print!("Hello, World! {:p}", &end);
+
+        kalloc::freerange((&end as *const u8) as usize, 4194304usize + 0x80000000usize);
+    }
+
     loop{}
 }
