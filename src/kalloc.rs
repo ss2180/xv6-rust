@@ -1,3 +1,4 @@
+#[repr(C)]
 struct Run<'a> {
     next: Option<&'a Run<'a>>,
 }
@@ -26,12 +27,16 @@ pub fn freerange(vstart: usize, vend: usize)
 
 unsafe fn kfree(address:usize)
 {
+    // TODO: Add extra checks here.
     if address % 4096 != 0
     {
         panic!("kfree");
     }
 
-    //TODO: Implement memset to fill page with junk.
+    let page: *mut u8 = address as *mut u8;
+    for i in 0..4096 {
+        page.offset(i).write(1u8);
+    }
 
     if MEMORY.use_lock
     {
