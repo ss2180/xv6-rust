@@ -1,7 +1,7 @@
-use volatile::Volatile;
 use core::fmt::Write;
 use lazy_static::lazy_static;
 use spin::Mutex;
+use volatile::Volatile;
 
 use crate::x86;
 
@@ -43,7 +43,6 @@ pub enum Color {
     White = 15,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 struct ColorCode(u8);
@@ -58,7 +57,7 @@ impl ColorCode {
 #[repr(C)]
 struct ScreenChar {
     ascii_character: u8,
-    color_code:ColorCode,
+    color_code: ColorCode,
 }
 
 const BUFFER_HEIGHT: usize = 25;
@@ -66,15 +65,13 @@ const BUFFER_WIDTH: usize = 80;
 
 #[repr(transparent)]
 struct Buffer {
-    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT] // Array(height) of Arrays(width), initialised to ScreenChar struct.
+    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT], // Array(height) of Arrays(width), initialised to ScreenChar struct.
 }
-
-
 
 pub struct Writer {
     column_position: usize,
     color_code: ColorCode,
-    buffer: &'static mut Buffer
+    buffer: &'static mut Buffer,
 }
 
 impl Writer {
@@ -100,7 +97,6 @@ impl Writer {
     }
 
     fn write_string(&mut self, s: &str) {
-
         for byte in s.bytes() {
             match byte {
                 // printable ASCII byte or newline
@@ -108,10 +104,9 @@ impl Writer {
                 // not part of printable ASCII range
                 _ => self.write_byte(0xfe),
             }
-
         }
 
-        sethardwarecursorposition((25*80 - 80) + self.column_position as u16);
+        sethardwarecursorposition((25 * 80 - 80) + self.column_position as u16);
     }
 
     fn new_line(&mut self) {
@@ -145,27 +140,26 @@ impl core::fmt::Write for Writer {
 }
 
 pub fn gethardwarecursorposition() -> u16 {
-    let pos:u16;
+    let pos: u16;
 
-    unsafe{
+    unsafe {
         x86::outb(0x3d4, 14);
         let temp = x86::inb(0x3d4 + 1);
         x86::outb(0x3d4, 15);
         pos = u16::from_be_bytes([temp, x86::inb(0x3d4 + 1)]);
     }
 
-    return pos
+    return pos;
 }
 
 pub fn sethardwarecursorposition(pos: u16) {
-
     // NOTE:
     // Probably should make sure that pos is less that 2000 (25 row * 80 col = 2000 elements)
     // Might be a good idea to make sure the value is 0 or greater also.
 
     let bytes = pos.to_be_bytes();
 
-    unsafe{
+    unsafe {
         x86::outb(0x3d4, 14);
         x86::outb(0x3d4 + 1, bytes[0]);
         x86::outb(0x3d4, 15);

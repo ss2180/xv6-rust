@@ -70,7 +70,7 @@ bootblock: bootasm.S bootmain.c
 	# chmod +x sign.pl
 	./sign.pl bootblock
 
-../target/i386-xv6_rust/debug/libkernel.a: kernel.rs vga_buffer.rs x86.rs kalloc.rs
+../target/i386-xv6_rust/debug/libkernel.a: kernel.rs vga_buffer.rs x86.rs kalloc.rs vm.rs
 	cargo build --profile dev
 
 kernel: ../target/i386-xv6_rust/debug/libkernel.a entry.o
