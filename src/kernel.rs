@@ -2,8 +2,10 @@
 #![no_main]
 #![feature(asm)]
 
-mod kalloc;
+
+#[macro_use]
 mod vga_buffer;
+mod kalloc;
 mod vm;
 mod x86;
 
@@ -74,6 +76,8 @@ pub fn main() {
         println!("Kalloc Test: {:p}", kalloc::kalloc().unwrap());
         println!("Kalloc Test: {:p}", kalloc::kalloc().unwrap());
     }
+
+    vm::kvmalloc();
 
     loop {}
 }

@@ -17,3 +17,7 @@ pub unsafe fn inb(port: u16) -> u8 {
 
     res
 }
+
+pub unsafe fn lcr3(val: usize) {
+    asm!("mov cr3, {}", in(reg) val);
+}
