@@ -40,7 +40,7 @@ lazy_static!{
 static ref KMAP: [Kmap; 4] =  unsafe{[Kmap {virt: KERNBASE, phys_start:0, phys_end:EXTMEM, perm:2},
                                       Kmap {virt: KERNLINK, phys_start:V2P!(KERNLINK), phys_end:V2P!((&data as *const u8) as usize), perm:0},
                                       Kmap {virt: (&data as *const u8) as usize, phys_start:V2P!((&data as *const u8) as usize), phys_end:PHYSTOP, perm:2},
-                                      Kmap {virt: DEVSPACE, phys_start:DEVSPACE, phys_end:0, perm:2}]};
+                                      Kmap {virt: DEVSPACE, phys_start:DEVSPACE, phys_end:0xFFFFFFFFusize, perm:2}]};
 }
 
 lazy_static!{
@@ -54,7 +54,8 @@ pub fn kvmalloc()
     println!("Kmap3: Virt: {:x}, PS: {:x}, PE {:x}, PERM: {:x}", KMAP[2].virt, KMAP[2].phys_start, KMAP[2].phys_end, KMAP[2].perm);
     println!("Kmap4: Virt: {:x}, PS: {:x}, PE {:x}, PERM: {:x}", KMAP[3].virt, KMAP[3].phys_start, KMAP[3].phys_end, KMAP[3].perm);
     unsafe{
-    x86::lcr3(*KPGDIR);
+        let test = *KPGDIR;
+        x86::lcr3(V2P!(test));
     }
 }
 
@@ -72,8 +73,7 @@ fn setupkvm() -> usize
         mappages(pgdir as usize, KMAP[0].virt, KMAP[0].phys_end - KMAP[0].phys_start, KMAP[0].phys_start, KMAP[0].perm);
         mappages(pgdir as usize, KMAP[1].virt, KMAP[1].phys_end - KMAP[1].phys_start, KMAP[1].phys_start, KMAP[1].perm);
         mappages(pgdir as usize, KMAP[2].virt, KMAP[2].phys_end - KMAP[2].phys_start, KMAP[2].phys_start, KMAP[2].perm);
-        mappages(pgdir as usize, KMAP[3].virt, KMAP[3].phys_end - KMAP[3].phys_start, KMAP[3].phys_start, KMAP[3].perm);
-        println!("Rtest");
+        mappages(pgdir as usize, KMAP[3].virt, KMAP[3].phys_end - KMAP[3].phys_start, KMAP[3].phys_start, KMAP[3].perm); // THIS IS BREAKING THINGS
 
         pgdir as usize
     }
@@ -83,18 +83,18 @@ fn setupkvm() -> usize
 fn mappages(pgdir: usize, va: usize, size: usize, mut pa: usize, perm: usize) -> usize
 {
     unsafe {
-    let pgsize = 4096;
+        let pgsize = 4096;
 
-    let mut address = va & !(pgsize - 1);
-    let last_address = (va + size - 1) & !(pgsize - 1);
+        let mut address = va & !(pgsize - 1);
+        let last_address = (va + size - 1) & !(pgsize - 1);
 
-    while address != last_address {
-        let pte = walkpgdir(pgdir, address, true);
-        *(pte as *mut usize) = pa | perm | 0x1;
+        while address != last_address {
+            let pte = walkpgdir(pgdir, address, true);
+            *(pte as *mut usize) = pa | perm | 0x1;
 
-        address = address + pgsize;
-        pa = pa + pgsize;
-    }
+            address = address + pgsize;
+            pa = pa + pgsize;
+        }
     }
     0usize
 }
