@@ -39,7 +39,7 @@ seta20.2:
     # to reload %cs and %eip.  The segment descriptors are set up with no
     # translation, so that the mapping is still the identity mapping.
 
-    ljmp    $0x8, $start32 # Pass value of 8 offset 8 bytes to code segment in GDT
+    ljmp    $0x8, $start32 # Pass value of 8 to offset 8 bytes to code segment in GDT
 
 .code32  # Tell assembler to generate 32-bit code now.
 start32:
@@ -53,7 +53,7 @@ start32:
     movw    %ax, %gs                # -> GS
 
     # Set up the stack pointer and call into C.
-    movl    $start, %esp # NOTE: Why set the stack pointer to value of start?
+    movl    $start, %esp 
     call    bootmain
 
     # If bootmain returns (it shouldn't),  loop.
@@ -62,7 +62,7 @@ spin:
 
 
 
-# Bootstrap GDT
+# Bootstrap GDT, hard coded values so avoid importing more C code.
 .p2align 2                                # force 4 byte alignment
 gdt:
     # null seg

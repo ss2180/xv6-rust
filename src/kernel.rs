@@ -2,10 +2,10 @@
 #![no_main]
 #![feature(asm)]
 
-
 #[macro_use]
 mod vga_buffer;
 mod kalloc;
+#[macro_use]
 mod vm;
 mod x86;
 
@@ -23,7 +23,7 @@ extern "C" {
 }
 
 #[repr(C, align(4096))]
-pub struct _entrypgdir([u32; 1024]);
+pub struct _entrypgdir([usize; 1024]);
 
 #[no_mangle]
 #[used]
@@ -69,15 +69,13 @@ pub fn main() {
     unsafe {
         println!("End of kernel:{:p}", &end);
 
-        kalloc::freerange((&end as *const u8) as usize, 4194304usize + 0x80000000usize);
+        kalloc::freerange((&end as *const u8) as usize, P2V!(4 * 1024 * 1024));
 
-        println!("Kalloc Test: {:p}", kalloc::kalloc().unwrap());
-        println!("Kalloc Test: {:p}", kalloc::kalloc().unwrap());
-        println!("Kalloc Test: {:p}", kalloc::kalloc().unwrap());
-        println!("Kalloc Test: {:p}", kalloc::kalloc().unwrap());
+        println!("Kalloc Test1: {:p}", kalloc::kalloc().unwrap());
+        println!("Kalloc Test2: {:p}", kalloc::kalloc().unwrap());
+
+        vm::kvmalloc(); // set up 4k page directory for entire kernel memory space.
     }
-
-    vm::kvmalloc();
 
     loop {}
 }
